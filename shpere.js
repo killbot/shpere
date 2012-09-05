@@ -3,6 +3,13 @@
 function init(){
  cvs = document.getElementById('canvas13k');
  ctx = cvs.getContext('2d');
+ cvs.addEventListener('mousedown', onMouseDown, false);
+ cvs.addEventListener('mousemove', onMouseMove, false);
+ cvs.addEventListener('mouseup', onMouseUp, false);
+ cvs.addEventListener('mouseout', onMouseUp, false);
+ isMouseDown = false;
+ mouseSensitivity = 100;
+ currentMouseCoords = {x:0, y:0};
  r = 200;
  delta = {theta:0, phi:0};
  sphere_tau = 0; //declination angle of the sphere relative to camera
@@ -44,7 +51,7 @@ function clear(){
 
 function update(){
  tm.step();
- delta.theta += tm.delta() * 0.0001;
+ //delta.theta += tm.delta() * 0.0001;
  //delta.phi += tm.delta() * 0.0002;
  //delta.theta += tm.delta() * 0.001;
  //delta.phi += tm.delta() * -0.003;
@@ -151,4 +158,59 @@ function Paddle(frontColor, rearColor, vertex){
 
 }
 
-
+function onMouseDown(ev){
+ ev.preventDefault();
+ isMouseDown = true;
+ currentMouseCoords = getMouseCoords(ev);
+ console.log("x, y = " + currentMouseCoords.x + ", " + currentMouseCoords.y);
+}
+function onMouseUp(ev){
+ ev.preventDefault();
+ isMouseDown = false;
+}
+function onMouseMove(ev){
+ ev.preventDefault();
+ lastMouseCoords = currentMouseCoords;
+ currentMouseCoords = getMouseCoords(ev);
+ if (isMouseDown){
+  delta.theta += (currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
+  sphere_tau += -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity; 
+  if (sphere_tau > Math.PI*9/20 ) {
+    sphere_tau = Math.PI*9/20;
+  }
+  else if (sphere_tau < -Math.PI*9/20){
+    sphere_tau = -Math.PI*9/20;
+  }
+ }
+}
+function getMouseCoords(ev) { //returns coords relative to 0,0 of the canvas
+        var x = ev.x;
+        var y = ev.y;
+        if (ev.x || ev.x == 0){                     //chrome
+            x = ev.x;
+            y = ev.y;
+            x -= cvs.offsetLeft;
+            y -= cvs.offsetTop;
+        }
+        else if (ev.layerX || ev.layerX == 0){      //Firefox
+            x = ev.layerX;
+            y = ev.layerY;
+        }
+        else if (ev.offsetX || ev.offsetX == 0){    //Opera
+            x = ev.offsetX;
+            y = ev.offsetY;
+        }
+        else if (ev.pageX || ev.pageX == 0){        //Safari i think
+            x = ev.pageX;
+            y = ev.pageY;
+            if (!ev.changedTouches){     //differentiates between a touch object, and a touchEvent object.  Safari treats them different for some reason.
+                y -= cvs.offsetTop;   //adjusts for having a scrolled window
+                x -= cvs.offsetLeft;
+            }            
+        }
+        else{                                       //Anything Else
+            x = 0;
+            y = 0;
+        }
+        return {x:x, y:y};
+}
