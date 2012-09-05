@@ -6,10 +6,15 @@ function init(){
  cvs.addEventListener('mousedown', onMouseDown, false);
  cvs.addEventListener('mousemove', onMouseMove, false);
  cvs.addEventListener('mouseup', onMouseUp, false);
- cvs.addEventListener('mouseout', onMouseUp, false);
+ //cvs.addEventListener('mouseout', onMouseUp, false);
+ cvs.addEventListener('touchstart', onMouseDown, false);
+ cvs.addEventListener('touchmove', onMouseMove, false);
+ cvs.addEventListener('touchend', onMouseUp, false);
  isMouseDown = false;
  mouseSensitivity = 100;
  currentMouseCoords = {x:0, y:0};
+ sphereVelocity = {x: 0, y: 0}; //used for swiping events.
+ sphereDecel = 10; //arbitrary units.
  r = 200;
  delta = {theta:0, phi:0};
  sphere_tau = 0; //declination angle of the sphere relative to camera
@@ -51,6 +56,29 @@ function clear(){
 
 function update(){
  tm.step();
+
+ if (!isMouseDown){
+  delta.theta += sphereVelocity.x;
+  sphere_tau += sphereVelocity.y;
+  if (sphere_tau > Math.PI*9/20){
+    sphere_tau = Math.PI*9/20;
+  }
+  else if (sphere_tau < -Math.PI*9/20){
+    sphere_tau = -Math.PI*9/20;
+  }
+
+  sphereVelocity.x = sphereVelocity.x * .95;
+  sphereVelocity.y = sphereVelocity.y * .90;
+  if (Math.abs(sphereVelocity.x) < 0.005 ){
+    sphereVelocity.x = 0;
+  }
+  if (Math.abs(sphereVelocity.y) < 0.005 ){
+    sphereVelocity.y = 0;
+  }
+
+ }
+
+
  //delta.theta += tm.delta() * 0.0001;
  //delta.phi += tm.delta() * 0.0002;
  //delta.theta += tm.delta() * 0.001;
@@ -167,6 +195,8 @@ function onMouseDown(ev){
 function onMouseUp(ev){
  ev.preventDefault();
  isMouseDown = false;
+ sphereVelocity.x = (currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
+ sphereVelocity.y = -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity;
 }
 function onMouseMove(ev){
  ev.preventDefault();
