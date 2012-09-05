@@ -3,6 +3,8 @@
 function init(){
  cvs = document.getElementById('canvas13k');
  ctx = cvs.getContext('2d');
+ cvs.height = window.innerHeight;
+ cvs.width = window.innerWidth;
  cvs.addEventListener('mousedown', onMouseDown, false);
  cvs.addEventListener('mousemove', onMouseMove, false);
  cvs.addEventListener('mouseup', onMouseUp, false);
@@ -15,9 +17,11 @@ function init(){
  currentMouseCoords = {x:0, y:0};
  sphereVelocity = {x: 0, y: 0}; //used for swiping events.
  sphereDecel = 10; //arbitrary units.
- r = 200;
+ r = cvs.height <= cvs.width ? cvs.height/2 : cvs.width/2 ;
+ r -= 10; //shrink by 10.
  delta = {theta:0, phi:0};
  sphere_tau = 0; //declination angle of the sphere relative to camera
+ starBoxSize = 0; //gets set in makestars();
 
  tm = {
   current: Date.now(),
@@ -31,8 +35,9 @@ function init(){
   }
  }
  sphere = makesphere();
- paddle = new Paddle('rgb(20,160,80)', 'rgba(20,160,80,0.4)', sphere[15][15]);
-
+ paddle = new Paddle('rgba(20,160,80,0.9)', 'rgba(20,160,80,0.4)', sphere[15][15]);
+ stars = makestars();
+ balls = [new Ball('red', 0,0,0, 0,0,0.2)];
 
 }
 
@@ -56,6 +61,15 @@ function clear(){
 
 function update(){
  tm.step();
+ paddle.update();
+ for (var i=0; i<stars.length; i++){
+  stars[i].update();
+ }
+ 
+ for (var j=0; j<balls.length; j++){
+  balls[j].update();
+ }
+ sortBalls();
 
  if (!isMouseDown){
   delta.theta += sphereVelocity.x;
@@ -75,7 +89,14 @@ function update(){
   if (Math.abs(sphereVelocity.y) < 0.005 ){
     sphereVelocity.y = 0;
   }
+ }
 
+ for (var i=balls.length-1; i>=0; i--){
+  //go through backwards and clean up pucks.
+  if (balls[i].deleteMe == true){
+    balls[i].delete;
+    balls.splice(i,1);
+  }
  }
 
 
@@ -87,9 +108,16 @@ function update(){
 
 function draw(){
  ctx.translate(cvs.width/2, cvs.height/2);
+ for (var i=0; i<stars.length; i++){
+  stars[i].draw();
+ }
+ if (!paddle.isInFront) { paddle.draw() ;}
+ for (var j=0; j<balls.length; j++){
+  balls[j].draw();
+ }
  drawLongitudes();
- paddle.draw();
-
+ if (paddle.isInFront) { paddle.draw() ;}
+ 
 }
 
 function drawLongitudes(){
@@ -129,11 +157,41 @@ function makesphere(){
  return sphere;
 }
 
+function makestars(){
+ var starsArray = [];
+ starBoxSize = cvs.width;
+ for (var i=0; i<500; i++){
+  starsArray.push(new Star('white', randomRange(-starBoxSize, starBoxSize), randomRange(-starBoxSize, starBoxSize), randomRange(-starBoxSize, starBoxSize)));
+ }
+ return starsArray;
+}
+
+
 function sphereToRect(rho, theta, phi){
+  //for orthographic transform
  x = rho * Math.sin(phi) * Math.cos(theta);
  y = rho * Math.sin(phi) * Math.sin(theta);
  z = rho * Math.cos(phi)
  return {x:y, y:z, z:x};
+}
+
+function sphereToStereoRect(rho, theta, phi){
+  //for stereoscopic transform
+  //assuming z, the camera lens is at 3r pixels from the screen.
+  //assuming the sphere's origin is -3r pixels from the screen.
+  //basically just a parallax maker.
+  var pt = sphereToRect(rho,theta,phi);
+  return rectToStereoRect(pt.x, pt.y, pt.z);
+}
+
+function rectToStereoRect(x,y,z){
+ //parallax maker where input is cartesian and not spherical
+  var pt = {x:x, y:y, z:z};
+  var pt1 = {x:0, y:0, z:0};
+  pt1.x = pt.x * (3*r) / (pt.z + 3*r + 3*r);
+  pt1.y = pt.y * (3*r) / (pt.z + 3*r + 3*r);
+  pt1.z = pt.z;
+  return pt1;
 }
 
 function rotateAboutY(x,y,z,phi){
@@ -144,8 +202,94 @@ function rotateAboutY(x,y,z,phi){
  var xprime = x;
  var yprime = y * Math.cos(phi) - z * Math.sin(phi);
  var zprime = y * Math.sin(phi) + z * Math.cos(phi);
-
  return {x:xprime, y:yprime, z:zprime};
+}
+
+function Star(color, x, y, z){
+ this.pos = {x:x, y:y, z:z};
+ this.vel = {x:0, y:0, z:-0.1};
+ //this.pos = {rho:rho, theta:theta, phi:phi};
+ this.color = color;
+ this.radius = 1;
+ this.update = function(){
+  this.pos.x += this.vel.x * tm.delta();
+  this.pos.y += this.vel.y * tm.delta();
+  this.pos.z += this.vel.z * tm.delta();
+
+  if (this.pos.z < -starBoxSize){
+    this.pos.z = starBoxSize;
+  }
+ }
+ this.draw = function(){
+  ctx.beginPath();
+  var pt = {x:0, y:0, z:0};
+  pt = rectToStereoRect(this.pos.x, this.pos.y, this.pos.z);
+  ctx.arc(pt.x, pt.y, this.radius, 0, 2*Math.PI, false);
+  ctx.fillStyle = this.color;
+  ctx.closePath();
+  ctx.fill();
+ }
+}
+
+function Ball(color, x,y,z, dx,dy,dz){
+  this.trueRadius = 10;
+  deleteMe = false; //flag to mark it for deletion at the end of update;
+  this.color = color;
+  this.pos = {x:x, y:y, z:z};
+  this.vel = {x:dx, y:dy, z:dz};
+  this.tolerance = 10;
+
+  this.update = function(){
+   var rho = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z*this.pos.z);
+   if (rho > r + r/2){
+    this.kill();
+   }
+   else if (rho < r + this.tolerance && rho > r - this.tolerance){
+    //bounce
+    console.log("bouncing");
+    var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi);
+    this.vel = reflect(N, this.vel);
+   }
+   this.pos.x += this.vel.x * tm.delta();
+   this.pos.y += this.vel.y * tm.delta();
+   this.pos.z += this.vel.z * tm.delta();
+  }
+  this.draw = function(){
+    var pt = this.pos;
+    var radius_temp = rectToStereoRect(this.trueRadius, this.trueRadius, pt.z);
+    var radius = radius_temp.x;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, radius, 0, 2*Math.PI, false);
+    ctx.fillStyle = this.color;
+    ctx.closePath();
+    ctx.fill();
+    //console.log('ball drawing at ' + pt.x + ", " + pt.y);
+  }
+  this.kill = function(){
+    this.deleteMe = true;
+  }
+  this.explode = function(){
+    this.deleteMe = true;
+  }
+  this.checkCollision = function(){
+
+  }
+}
+
+function sortBalls(){
+  //sorts them by Z via bubble sort, lowest z first;
+  var switchCounter = 1;
+  while (switchCounter){
+   switchCounter = 0;
+   for (var i=0; i<balls.length-1; i++){
+    if (balls[i] > balls[i+1]){
+      var temp = balls[i];
+      balls[i] = balls[i+1];
+      balls[i+1] = temp;
+      switchCounter ++;
+    }
+   }
+  }
 }
 
 function Paddle(frontColor, rearColor, vertex){
@@ -155,7 +299,13 @@ function Paddle(frontColor, rearColor, vertex){
  this.frontColor = frontColor;
  this.rearColor = rearColor;
  this.deg = 0.5084;
+ isInFront = true;
 
+ this.update = function(){
+  var ptv = sphereToRect(r, this.vertex.theta + delta.theta, this.vertex.phi);
+  ptv = rotateAboutY(ptv.x, ptv.y, ptv.z, sphere_tau);
+  this.isInFront = ptv.z > 0 ? true : false;
+ }
 
  this.draw = function(){
   ctx.beginPath();
@@ -179,7 +329,7 @@ function Paddle(frontColor, rearColor, vertex){
   ctx.lineTo(Math.round(pt3.x), Math.round(pt3.y));
 
   //ctx.closePath();
-  ctx.fillStyle = ptv.z > 0 ? this.frontColor: this.rearColor;
+  ctx.fillStyle = this.isInFront ? this.frontColor: this.rearColor;
   ctx.fill();
   //ctx.fillRect(pt0.x, pt0.y, 20, 20);
  }
@@ -244,3 +394,26 @@ function getMouseCoords(ev) { //returns coords relative to 0,0 of the canvas
         }
         return {x:x, y:y};
 }
+function randomRange(a,b){
+ return Math.random() * ((a<b)?(b-a):(a-b)) + ((a<b)?a:b);
+}
+
+function reflect(N, V0){
+  //reflects a vector V0 about a normal vector N.
+  //vectors should be in cartesian coordinates
+  var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z)
+  var scalar =  -2 * (N.x*V0.x/normalFactor + N.y*V0.y/normalFactor + N.z*V0.z/normalFactor)  ;
+  var Vnew = {x:scalar*N.x/normalFactor + V0.x, 
+              y:scalar*N.y/normalFactor + V0.y, 
+              z:scalar*N.z/normalFactor + V0.z};
+  console.log(scalar);
+  console.log(N);
+  console.log(V0);
+  console.log(Vnew);
+  return Vnew;
+}
+
+
+
+
+
