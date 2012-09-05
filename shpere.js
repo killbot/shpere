@@ -166,6 +166,13 @@ function makestars(){
  return starsArray;
 }
 
+function rectToSphere(x,y,z){
+  var rho = Math.sqrt(x*x + y*y + z*z);
+  var S = Math.sqrt(z*z + x*x);
+  var theta = -z >= 0 ? Math.asin(x/S) : Math.PI - Math.asin(x/S);
+  var phi = Math.acos(-y/rho);
+  return {rho:rho, theta:theta, phi:phi};
+}
 
 function sphereToRect(rho, theta, phi){
   //for orthographic transform
@@ -246,9 +253,16 @@ function Ball(color, x,y,z, dx,dy,dz){
    }
    else if (rho < r + this.tolerance && rho > r - this.tolerance){
     //bounce
-    console.log("bouncing");
-    var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi);
-    this.vel = reflect(N, this.vel);
+    var spherePos = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
+    if (spherePos.theta < paddle.vertex.theta + paddle.deg/2 + delta.theta &&
+          spherePos.theta > paddle.vertex.theta - paddle.deg/2 + delta.theta &&
+          spherePos.phi < paddle.vertex.phi + paddle.deg/2 + sphere_tau && 
+          spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
+      console.log("bouncing");
+      var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi + sphere_tau);
+      this.vel = reflect(N, this.vel);
+    }
+    
    }
    this.pos.x += this.vel.x * tm.delta();
    this.pos.y += this.vel.y * tm.delta();
