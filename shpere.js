@@ -39,7 +39,7 @@ function init(){
  paddle = new Paddle('rgba(20,160,80,0.9)', 'rgba(20,160,80,0.4)', sphere[15][15]);
  console.log(sphere[15][15]);
  stars = makestars();
- balls = [new Ball('red', 0,0,0, 0,0,-0.15)];
+ balls = [new Ball('green', 0,0,0, 0,0,-0.15)];
 
 }
 
@@ -283,14 +283,14 @@ function Ball(color, x,y,z, dx,dy,dz){
           spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
       //console.log("bouncing");
       var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi + sphere_tau);
-      var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.x);
+      var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z);
       N.x = N.x/normalFactor;
       N.y = N.y/normalFactor;
       N.z = N.z/normalFactor;
       this.vel = reflect(N, this.vel);
       score += 13;
       
-      if (score % 39 == 0){
+      if (score % 26 == 0){
         this.multiball(2, N);
       }
       
@@ -307,7 +307,7 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.draw = function(){
     //var pt = rectToStereoRect(this.pos.x, this.pos.y, this.pos.z);
     var pt = this.pos;
-    var radius_temp = rectToStereoRect(this.trueRadius, this.trueRadius, pt.z*2);
+    var radius_temp = rectToStereoRect(this.trueRadius, this.trueRadius, pt.z*3);
     var radius = radius_temp.x;
     ctx.beginPath();
     ctx.arc(pt.x, pt.y, radius, 0, 2*Math.PI, false);
@@ -345,10 +345,12 @@ function Ball(color, x,y,z, dx,dy,dz){
   }
   this.multiball = function(number, Normal){
     for (var i=0; i<number; i++){
-      var newColor = 'blue';
-      balls.push(new Ball(newColor, 0,0,0, -Normal.x * (.15 + randomRange(-.02,.02)),
-                                          -Normal.y * (.15 + randomRange(-.02,.02)),
-                                          -Normal.z * (.15 + randomRange(-.02,.02))
+      var newColor = 'rgb(' + Math.floor(randomRange(120,190)) + ',' + Math.floor(randomRange(120,190)) + ',' + Math.floor(randomRange(120,190)) + ')';
+      //console.log("newcolor = " + newColor);
+      console.log("normal magnitude = " + Math.sqrt(Normal.x*Normal.x + Normal.y*Normal.y + Normal.z*Normal.z));
+      balls.push(new Ball(newColor, 0,0,0, -Normal.x * (.15 + randomRange(-.03,.03)),
+                                          -Normal.y * (.15 + randomRange(-.03,.03)),
+                                          -Normal.z * (.15 + randomRange(-.03,.03))
         ));
     }
   }
