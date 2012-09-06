@@ -36,6 +36,7 @@ function init(){
  }
  sphere = makesphere();
  paddle = new Paddle('rgba(20,160,80,0.9)', 'rgba(20,160,80,0.4)', sphere[15][15]);
+ console.log(sphere[15][15]);
  stars = makestars();
  balls = [new Ball('red', 0,0,0, 0,0,-0.15)];
 
@@ -182,7 +183,7 @@ function sphereToRect(rho, theta, phi){
  x = rho * Math.sin(phi) * Math.cos(theta);
  y = rho * Math.sin(phi) * Math.sin(theta);
  z = rho * Math.cos(phi)
- return {x:y, y:z, z:x};
+ return {x:y, y:-z, z:-x};
 }
 
 function sphereToStereoRect(rho, theta, phi){
@@ -198,8 +199,8 @@ function rectToStereoRect(x,y,z){
  //parallax maker where input is cartesian and not spherical
   var pt = {x:x, y:y, z:z};
   var pt1 = {x:0, y:0, z:0};
-  pt1.x = pt.x * (3*r) / (pt.z + 3*r + 3*r);
-  pt1.y = pt.y * (3*r) / (pt.z + 3*r + 3*r);
+  pt1.x = pt.x * (-3*r) / (pt.z + -3*r + -3*r);
+  pt1.y = pt.y * (-3*r) / (pt.z + -3*r + -3*r);
   pt1.z = pt.z;
   return pt1;
 }
@@ -217,7 +218,7 @@ function rotateAboutY(x,y,z,phi){
 
 function Star(color, x, y, z){
  this.pos = {x:x, y:y, z:z};
- this.vel = {x:0, y:0, z:-0.1};
+ this.vel = {x:0, y:0, z:0.1};
  //this.pos = {rho:rho, theta:theta, phi:phi};
  this.color = color;
  this.radius = 1;
@@ -226,8 +227,8 @@ function Star(color, x, y, z){
   this.pos.y += this.vel.y * tm.delta();
   this.pos.z += this.vel.z * tm.delta();
 
-  if (this.pos.z < -starBoxSize){
-    this.pos.z = starBoxSize;
+  if (this.pos.z > starBoxSize){
+    this.pos.z = -starBoxSize;
   }
  }
  this.draw = function(){
@@ -248,6 +249,7 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.pos = {x:x, y:y, z:z};
   this.vel = {x:dx, y:dy, z:dz};
   this.tolerance = 10;
+  this.insideSphere = true;
 
   this.update = function(){
    var rho = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z*this.pos.z);
@@ -255,15 +257,26 @@ function Ball(color, x,y,z, dx,dy,dz){
     this.kill();
    }
    else if (rho < r + this.tolerance && rho > r - this.tolerance){
-    //bounce
     var spherePos = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
-    if (spherePos.theta < (paddle.vertex.theta + delta.theta)%(Math.PI*2) + paddle.deg/2 &&
-          spherePos.theta > (paddle.vertex.theta + delta.theta)%(Math.PI*2) - paddle.deg/2 &&
+    //console.log(spherePos.theta);
+    //console.log(paddle.vertex.theta + delta.theta);
+    console.log("spherePos.theta and paddle.vertex.theta:");
+    console.log(spherePos.theta);
+    console.log((paddle.vertex.theta + delta.theta)%(2*Math.PI));
+    console.log("spherePos.phi and paddle.vertex.phi:");
+    console.log(spherePos.phi);
+    console.log(paddle.vertex.phi + sphere_tau);
+
+    if (spherePos.theta < (paddle.vertex.theta + delta.theta + paddle.deg/2)%(Math.PI*2) &&
+          spherePos.theta > (paddle.vertex.theta + delta.theta - paddle.deg/2)%(Math.PI*2) &&
           spherePos.phi < paddle.vertex.phi + paddle.deg/2 + sphere_tau && 
           spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
-      console.log("bouncing");
+      //console.log("bouncing");
       var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi + sphere_tau);
       this.vel = reflect(N, this.vel);
+    }
+    if (rho > r){
+      this.insideSphere = false;
     }
     
    }
@@ -281,7 +294,9 @@ function Ball(color, x,y,z, dx,dy,dz){
     ctx.fillStyle = this.color;
     ctx.closePath();
     ctx.fill();
-    this.drawRay(this);
+    if (this.insideSphere){
+      this.drawRay();
+    }
     //console.log('ball drawing at ' + pt.x + ", " + pt.y);
   }
   this.kill = function(){
@@ -295,12 +310,14 @@ function Ball(color, x,y,z, dx,dy,dz){
   }
   this.drawRay = function(that){
     //var this = that;
-    var startPoint = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
-    var endPoint = {rho:r, theta:startPoint.theta, phi: startPoint.phi};
+    //var startPoint = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
+    var velocity = rectToSphere(this.vel.x, this.vel.y, this.vel.z);
+    var endPoint = {rho:r, theta:velocity.theta, phi: velocity.phi};
     var pt0 = this.pos;
     var pt1 = sphereToRect(endPoint.rho, endPoint.theta, endPoint.phi);
-    pt1.y = -pt1.y;
+    //pt1.y = pt1.y;
     ctx.beginPath();
+    //console.log([velocity, endPoint])
     ctx.moveTo(pt0.x, pt0.y);
     ctx.lineTo(pt1.x, pt1.y);
     ctx.strokeStyle = 'white';
@@ -372,12 +389,12 @@ function onMouseDown(ev){
  ev.preventDefault();
  isMouseDown = true;
  currentMouseCoords = getMouseCoords(ev);
- console.log("x, y = " + currentMouseCoords.x + ", " + currentMouseCoords.y);
+ //console.log("x, y = " + currentMouseCoords.x + ", " + currentMouseCoords.y);
 }
 function onMouseUp(ev){
  ev.preventDefault();
  isMouseDown = false;
- sphereVelocity.x = (currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
+ sphereVelocity.x = -(currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
  sphereVelocity.y = -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity;
 }
 function onMouseMove(ev){
@@ -385,7 +402,7 @@ function onMouseMove(ev){
  lastMouseCoords = currentMouseCoords;
  currentMouseCoords = getMouseCoords(ev);
  if (isMouseDown){
-  delta.theta += (currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
+  delta.theta += -(currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
   sphere_tau += -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity; 
   
   if (sphere_tau > Math.PI*9/20 ) {
@@ -437,13 +454,13 @@ function reflect(N, V0){
   //vectors should be in cartesian coordinates
   var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z)
   var scalar =  -2 * (-N.x*V0.x/normalFactor + N.y*V0.y/normalFactor + N.z*V0.z/normalFactor)  ;
-  var Vnew = {x:scalar*-N.x/normalFactor + V0.x, 
+  var Vnew = {x:scalar*N.x/normalFactor + V0.x, 
               y:scalar*N.y/normalFactor + V0.y, 
               z:scalar*N.z/normalFactor + V0.z};
-  console.log(scalar);
-  console.log(N);
-  console.log(V0);
-  console.log(Vnew);
+  //console.log(scalar);
+  //console.log(N);
+  //console.log(V0);
+  //console.log(Vnew);
   return Vnew;
 }
 
