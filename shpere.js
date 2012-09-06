@@ -37,7 +37,7 @@ function init(){
  sphere = makesphere();
  paddle = new Paddle('rgba(20,160,80,0.9)', 'rgba(20,160,80,0.4)', sphere[15][15]);
  stars = makestars();
- balls = [new Ball('red', 0,0,0, 0,0,0.2)];
+ balls = [new Ball('red', 0,0,0, 0,0,-0.15)];
 
 }
 
@@ -74,12 +74,14 @@ function update(){
  if (!isMouseDown){
   delta.theta += sphereVelocity.x;
   sphere_tau += sphereVelocity.y;
+  
   if (sphere_tau > Math.PI*9/20){
     sphere_tau = Math.PI*9/20;
   }
   else if (sphere_tau < -Math.PI*9/20){
     sphere_tau = -Math.PI*9/20;
   }
+  
 
   sphereVelocity.x = sphereVelocity.x * .95;
   sphereVelocity.y = sphereVelocity.y * .90;
@@ -170,6 +172,7 @@ function rectToSphere(x,y,z){
   var rho = Math.sqrt(x*x + y*y + z*z);
   var S = Math.sqrt(z*z + x*x);
   var theta = -z >= 0 ? Math.asin(x/S) : Math.PI - Math.asin(x/S);
+  if (S==0){theta = 0};
   var phi = Math.acos(-y/rho);
   return {rho:rho, theta:theta, phi:phi};
 }
@@ -254,8 +257,8 @@ function Ball(color, x,y,z, dx,dy,dz){
    else if (rho < r + this.tolerance && rho > r - this.tolerance){
     //bounce
     var spherePos = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
-    if (spherePos.theta < paddle.vertex.theta + paddle.deg/2 + delta.theta &&
-          spherePos.theta > paddle.vertex.theta - paddle.deg/2 + delta.theta &&
+    if (spherePos.theta < (paddle.vertex.theta + delta.theta)%(Math.PI*2) + paddle.deg/2 &&
+          spherePos.theta > (paddle.vertex.theta + delta.theta)%(Math.PI*2) - paddle.deg/2 &&
           spherePos.phi < paddle.vertex.phi + paddle.deg/2 + sphere_tau && 
           spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
       console.log("bouncing");
@@ -269,6 +272,7 @@ function Ball(color, x,y,z, dx,dy,dz){
    this.pos.z += this.vel.z * tm.delta();
   }
   this.draw = function(){
+    //var pt = rectToStereoRect(this.pos.x, this.pos.y, this.pos.z);
     var pt = this.pos;
     var radius_temp = rectToStereoRect(this.trueRadius, this.trueRadius, pt.z);
     var radius = radius_temp.x;
@@ -277,6 +281,7 @@ function Ball(color, x,y,z, dx,dy,dz){
     ctx.fillStyle = this.color;
     ctx.closePath();
     ctx.fill();
+    this.drawRay(this);
     //console.log('ball drawing at ' + pt.x + ", " + pt.y);
   }
   this.kill = function(){
@@ -287,6 +292,19 @@ function Ball(color, x,y,z, dx,dy,dz){
   }
   this.checkCollision = function(){
 
+  }
+  this.drawRay = function(that){
+    //var this = that;
+    var startPoint = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
+    var endPoint = {rho:r, theta:startPoint.theta, phi: startPoint.phi};
+    var pt0 = this.pos;
+    var pt1 = sphereToRect(endPoint.rho, endPoint.theta, endPoint.phi);
+    pt1.y = -pt1.y;
+    ctx.beginPath();
+    ctx.moveTo(pt0.x, pt0.y);
+    ctx.lineTo(pt1.x, pt1.y);
+    ctx.strokeStyle = 'white';
+    ctx.stroke();
   }
 }
 
@@ -369,12 +387,14 @@ function onMouseMove(ev){
  if (isMouseDown){
   delta.theta += (currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
   sphere_tau += -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity; 
+  
   if (sphere_tau > Math.PI*9/20 ) {
     sphere_tau = Math.PI*9/20;
   }
   else if (sphere_tau < -Math.PI*9/20){
     sphere_tau = -Math.PI*9/20;
   }
+
  }
 }
 function getMouseCoords(ev) { //returns coords relative to 0,0 of the canvas
@@ -416,8 +436,8 @@ function reflect(N, V0){
   //reflects a vector V0 about a normal vector N.
   //vectors should be in cartesian coordinates
   var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z)
-  var scalar =  -2 * (N.x*V0.x/normalFactor + N.y*V0.y/normalFactor + N.z*V0.z/normalFactor)  ;
-  var Vnew = {x:scalar*N.x/normalFactor + V0.x, 
+  var scalar =  -2 * (-N.x*V0.x/normalFactor + N.y*V0.y/normalFactor + N.z*V0.z/normalFactor)  ;
+  var Vnew = {x:scalar*-N.x/normalFactor + V0.x, 
               y:scalar*N.y/normalFactor + V0.y, 
               z:scalar*N.z/normalFactor + V0.z};
   console.log(scalar);
