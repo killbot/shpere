@@ -13,12 +13,15 @@ function init(){
     mobile = true;
   }
  else {
-  cvs.height = window.innerHeight-10;
-  cvs.width = window.innerWidth-10;
-  //cvs.height = 500;
-  //cvs.width = 800;
+  //cvs.height = window.innerHeight-10;
+  //cvs.width = window.innerWidth-10;
+  cvs.height = 500;
+  cvs.width = 800;
  }
 //console.log(agentTest('iPod'));
+
+ menuImage = new Image;
+ menuImage.src = 'instructions.svg';
 
  cvs.addEventListener('mousedown', onMouseDown, false);
  cvs.addEventListener('mousemove', onMouseMove, false);
@@ -40,6 +43,8 @@ function init(){
  score = 0;
  //console.log('window.innerwidth and cvs.width = ' + window.innerWidth + ", " + cvs.width);
  //console.log('window.innerHeight and cvs.height = ' + window.innerHeight + ", " + cvs.height);
+ menuState = true;
+ playingState = false;
 
  tm = {
   current: Date.now(),
@@ -130,6 +135,9 @@ function update(){
   }
  }
 
+ if (menuState){
+
+ }
 
  //delta.theta += tm.delta() * 0.0001;
  //delta.phi += tm.delta() * 0.0002;
@@ -138,6 +146,7 @@ function update(){
 }
 
 function draw(){
+ ctx.save();
  ctx.translate(cvs.width/2, cvs.height/2);
  for (var i=0; i<stars.length; i++){
   stars[i].draw();
@@ -149,6 +158,12 @@ function draw(){
  drawLongitudes();
  if (paddle.isInFront) { paddle.draw() ;}
  
+ if (menuState){
+  ctx.restore();
+  var menuSize = (cvs.height > cvs.width) ? cvs.width : cvs.height; 
+
+  ctx.drawImage(menuImage,cvs.width/2 - menuSize/2, cvs.height/2 - menuSize/2 ,menuSize,menuSize);
+ }
 }
 
 function drawLongitudes(){
