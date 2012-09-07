@@ -20,7 +20,7 @@ function init(){
  r = cvs.height <= cvs.width ? cvs.height/2 : cvs.width/2 ;
  r -= 10; //shrink by 10.
  delta = {theta:0, phi:0};
- sphere_tau = 0; //declination angle of the sphere relative to camera
+ sphere_tau = -Math.PI/6; //declination angle of the sphere relative to camera
  starBoxSize = 0; //gets set in makestars();
  score = 0;
 
@@ -71,29 +71,32 @@ function update(){
  for (var j=0; j<balls.length; j++){
   balls[j].update();
  }
- sortBalls();
+ //sortBalls();
 
  if (!isMouseDown){
-  delta.theta += sphereVelocity.x;
-  sphere_tau += -sphereVelocity.y;
-  
+    delta.theta += sphereVelocity.x;
+  }
+  //sphere_tau += -sphereVelocity.y;
+  /*
   if (sphere_tau > Math.PI*9/20){
     sphere_tau = Math.PI*9/20;
   }
   else if (sphere_tau < -Math.PI*9/20){
     sphere_tau = -Math.PI*9/20;
   }
-  
+  */
 
   sphereVelocity.x = sphereVelocity.x * .95;
-  sphereVelocity.y = sphereVelocity.y * .90;
+  //sphereVelocity.y = sphereVelocity.y * .90;
   if (Math.abs(sphereVelocity.x) < 0.005 ){
     sphereVelocity.x = 0;
   }
+  /*
   if (Math.abs(sphereVelocity.y) < 0.005 ){
     sphereVelocity.y = 0;
   }
  }
+ */
 
  for (var i=balls.length-1; i>=0; i--){
   //go through backwards and clean up pucks.
@@ -131,11 +134,11 @@ function drawLongitudes(){
  for (var j=0; j<sphere.length; j++){
   ctx.beginPath();
   var pt0 = sphereToRect(r,sphere[j][0].theta + delta.theta, sphere[j][0].phi);
-  //pt0 = rotateAboutY(pt0.x, pt0.y, pt0.z, sphere_tau);
+  pt0 = rotateAboutY(pt0.x, pt0.y, pt0.z, sphere_tau);
   ctx.moveTo(Math.round(pt0.x), Math.round(pt0.y));
   for (var i=1; i<sphere[j].length; i++){
    var pt = sphereToRect(r,sphere[j][i].theta + delta.theta, sphere[j][i].phi);
-   //pt = rotateAboutY(pt.x, pt.y, pt.z, sphere_tau);
+   pt = rotateAboutY(pt.x, pt.y, pt.z, sphere_tau);
    ctx.lineTo(Math.round(pt.x), Math.round(pt.y));
    if (i == 15){
     ctx.strokeStyle = pt.z > 0 ? frontColor : rearColor;
@@ -253,8 +256,12 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.vel = {x:dx, y:dy, z:dz};
   this.tolerance = 10;
   this.insideSphere = true;
+  this.hasBounced = false;
+  this.bounceTimerCounter = 0;
 
   this.update = function(){
+    this.vel.y = 0;
+    this.pos.y = 0;
    var rho = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z*this.pos.z);
    if (rho > r + r/2){
     this.kill();
@@ -277,12 +284,14 @@ function Ball(color, x,y,z, dx,dy,dz){
     console.log(spherePos.phi);
     console.log(paddle.vertex.phi + sphere_tau);
     */
-    if (spherePos.theta < (paddleTheta + paddle.deg/2)%(Math.PI*2) &&
-          spherePos.theta > (paddleTheta - paddle.deg/2)%(Math.PI*2) &&
-          spherePos.phi < paddle.vertex.phi + paddle.deg/2 + sphere_tau && 
-          spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
+    if (  !this.hasBounced &&
+          spherePos.theta < (paddleTheta + paddle.deg/2)%(Math.PI*2) &&
+          spherePos.theta > (paddleTheta - paddle.deg/2)%(Math.PI*2)){
+          //spherePos.phi < paddle.vertex.phi + paddle.deg/2 + sphere_tau && 
+          //spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
       //console.log("bouncing");
-      var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi + sphere_tau);
+      this.hasBounced = true;
+      var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi);
       var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z);
       N.x = N.x/normalFactor;
       N.y = N.y/normalFactor;
@@ -290,7 +299,7 @@ function Ball(color, x,y,z, dx,dy,dz){
       this.vel = reflect(N, this.vel);
       score += 13;
       
-      if (score % 26 == 0){
+      if (score % 39 == 0){
         this.multiball(2, N);
       }
       
@@ -303,10 +312,17 @@ function Ball(color, x,y,z, dx,dy,dz){
    this.pos.x += this.vel.x * tm.delta();
    this.pos.y += this.vel.y * tm.delta();
    this.pos.z += this.vel.z * tm.delta();
+   if (this.hasBounced){
+    this.bounceTimerCounter++;
+    if (this.bounceTimerCounter > 10){
+      this.bounceTimerCounter = 0;
+      this.hasBounced = false;
+    }
+   }
   }
   this.draw = function(){
     //var pt = rectToStereoRect(this.pos.x, this.pos.y, this.pos.z);
-    var pt = this.pos;
+    var pt = rotateAboutY(this.pos.x, this.pos.y, this.pos.z, sphere_tau);
     var radius_temp = rectToStereoRect(this.trueRadius, this.trueRadius, pt.z*3);
     var radius = radius_temp.x;
     ctx.beginPath();
@@ -314,8 +330,10 @@ function Ball(color, x,y,z, dx,dy,dz){
     ctx.fillStyle = this.color;
     ctx.closePath();
     ctx.fill();
+    ctx.strokeStyle='black';
+    ctx.stroke();
     if (this.insideSphere){
-      this.drawRay();
+      //this.drawRay();
     }
     //console.log('ball drawing at ' + pt.x + ", " + pt.y);
   }
@@ -348,10 +366,16 @@ function Ball(color, x,y,z, dx,dy,dz){
       var newColor = 'rgb(' + Math.floor(randomRange(120,190)) + ',' + Math.floor(randomRange(120,190)) + ',' + Math.floor(randomRange(120,190)) + ')';
       //console.log("newcolor = " + newColor);
       console.log("normal magnitude = " + Math.sqrt(Normal.x*Normal.x + Normal.y*Normal.y + Normal.z*Normal.z));
+      console.log("normal.y = " + Normal.y);
       balls.push(new Ball(newColor, 0,0,0, -Normal.x * (.15 + randomRange(-.03,.03)),
-                                          -Normal.y * (.15 + randomRange(-.03,.03)),
+                                          //-Normal.y * (.15 + randomRange(-.03,.03)),
+                                          0,
                                           -Normal.z * (.15 + randomRange(-.03,.03))
         ));
+      var tb = balls[balls.length-1];
+      tb.pos.x += tb.vel.x * tm.delta();
+      tb.pos.y += tb.vel.y * tm.delta();
+      tb.pos.z += tb.vel.z * tm.delta();
     }
   }
 
@@ -402,17 +426,17 @@ function Paddle(frontColor, rearColor, vertex){
   ctx.beginPath();
   var center = this.vertex;
   var ptv = sphereToRect(r, this.vertex.theta + delta.theta, this.vertex.phi);
-  //ptv = rotateAboutY(ptv.x, ptv.y, ptv.z, sphere_tau);
+  ptv = rotateAboutY(ptv.x, ptv.y, ptv.z, sphere_tau);
 
 
-  var pt0 = sphereToRect(r, this.vertex.theta - this.deg/2 + delta.theta, this.vertex.phi - this.deg/2 + sphere_tau);
-  //pt0 = rotateAboutY(pt0.x, pt0.y, pt0.z, sphere_tau);
-  var pt1 = sphereToRect(r, this.vertex.theta + this.deg/2 + delta.theta, this.vertex.phi - this.deg/2 + sphere_tau);
-  //pt1 = rotateAboutY(pt1.x, pt1.y, pt1.z, sphere_tau);
-  var pt2 = sphereToRect(r, this.vertex.theta + this.deg/2 + delta.theta, this.vertex.phi + this.deg/2 + sphere_tau);
-  //pt2 = rotateAboutY(pt2.x, pt2.y, pt2.z, sphere_tau);
-  var pt3 = sphereToRect(r, this.vertex.theta - this.deg/2 + delta.theta, this.vertex.phi + this.deg/2 + sphere_tau);
-  //pt3 = rotateAboutY(pt3.x, pt3.y, pt3.z, sphere_tau);
+  var pt0 = sphereToRect(r, this.vertex.theta - this.deg/2 + delta.theta, this.vertex.phi - this.deg/2 );
+  pt0 = rotateAboutY(pt0.x, pt0.y, pt0.z, sphere_tau);
+  var pt1 = sphereToRect(r, this.vertex.theta + this.deg/2 + delta.theta, this.vertex.phi - this.deg/2 );
+  pt1 = rotateAboutY(pt1.x, pt1.y, pt1.z, sphere_tau);
+  var pt2 = sphereToRect(r, this.vertex.theta + this.deg/2 + delta.theta, this.vertex.phi + this.deg/2 );
+  pt2 = rotateAboutY(pt2.x, pt2.y, pt2.z, sphere_tau);
+  var pt3 = sphereToRect(r, this.vertex.theta - this.deg/2 + delta.theta, this.vertex.phi + this.deg/2 );
+  pt3 = rotateAboutY(pt3.x, pt3.y, pt3.z, sphere_tau);
 
   ctx.moveTo(Math.round(pt0.x), Math.round(pt0.y));
   ctx.lineTo(Math.round(pt1.x), Math.round(pt1.y));
@@ -445,14 +469,16 @@ function onMouseMove(ev){
  currentMouseCoords = getMouseCoords(ev);
  if (isMouseDown){
   delta.theta += -(currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
-  sphere_tau += (currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity; 
-  
+
+  //sphere_tau += (currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity; 
+  /*
   if (sphere_tau > Math.PI*9/20 ) {
     sphere_tau = Math.PI*9/20;
   }
   else if (sphere_tau < -Math.PI*9/20){
     sphere_tau = -Math.PI*9/20;
   }
+  */
 
  }
 }
@@ -495,14 +521,14 @@ function reflect(N, V0){
   //reflects a vector V0 about a normal vector N.
   //vectors should be in cartesian coordinates
   var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z)
-  var scalar =  -2 * (-N.x*V0.x/normalFactor + N.y*V0.y/normalFactor + N.z*V0.z/normalFactor)  ;
+  var scalar =  -2 * (N.x*V0.x/normalFactor + N.y*V0.y/normalFactor + N.z*V0.z/normalFactor)  ;
   var Vnew = {x:scalar*N.x/normalFactor + V0.x, 
               y:scalar*N.y/normalFactor + V0.y, 
               z:scalar*N.z/normalFactor + V0.z};
-  //console.log(scalar);
-  //console.log(N);
-  //console.log(V0);
-  //console.log(Vnew);
+  console.log(scalar);
+  console.log(N);
+  console.log(V0);
+  console.log(Vnew);
   return Vnew;
 }
 
