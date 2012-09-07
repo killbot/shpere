@@ -1,33 +1,38 @@
 //dave homan's entry into js13k game compo 2012
 
 function init(){
- cvs = document.getElementById('canvas13k');
- cvs2 = document.createElement('canvas');
- ctx2 = cvs2.getContext('2d');
+ cvs = document.createElement('canvas');
+ cvs_viewport = document.getElementById('canvas13k');
+ //cvs = document.getElementById('canvas13k');
+ //cvs2 = document.createElement('canvas');
+ ctx_viewport = cvs_viewport.getContext('2d');
  ctx = cvs.getContext('2d');
  mobile = false;
  //agentTest = navigator.userAgent.indexOf;
  if ((navigator.userAgent.indexOf('iPhone') != -1) 
   || (navigator.userAgent.indexOf('iPod') != -1) 
   || (navigator.userAgent.indexOf('iPad') != -1)) {
-    cvs.height = 500;
-    cvs.width = 800;
+    cvs.height = 300;
+    cvs.width = 400;
     mobile = true;
   }
  else {
-  cvs.height = window.innerHeight-10;
-  cvs.width = window.innerWidth-10;
+  cvs.height = window.innerHeight-20;
+  cvs.width = window.innerWidth-20;
   //cvs.height = 500;
   //cvs.width = 800;
  }
+ cvs_viewport.height = cvs.height;
+ cvs_viewport.width = cvs.width;
 //console.log(agentTest('iPod'));
 
  menuImage = new Image;
  menuImage.src = 'instructions.svg';
+ 
 
- cvs.addEventListener('mousedown', onMouseDown, false);
- cvs.addEventListener('mousemove', onMouseMove, false);
- cvs.addEventListener('mouseup', onMouseUp, false);
+ window.addEventListener('mousedown', onMouseDown, false);
+ window.addEventListener('mousemove', onMouseMove, false);
+ window.addEventListener('mouseup', onMouseUp, false);
  //cvs.addEventListener('mouseout', onMouseUp, false);
  window.addEventListener('touchstart', onMouseDown, false);
  window.addEventListener('touchmove', onMouseMove, false);
@@ -71,7 +76,9 @@ function init(){
   stars = [];
  }
 
- balls = [new Ball('green', 0,0,0, 0,0,-0.15)];
+ balls = [new Ball('green', 0,0,0, 0,0,-r/2000)];
+ //-r/2000 is a good starting speed.
+ balls[0].isCaught = true;
  //balls = [];
 }
 function shpereMain(){
@@ -83,13 +90,17 @@ function loop(){
 	clear();
 	update();
 	draw();
+  flip();
 }
 
 function clear(){
 	ctx.clearRect(0,0,cvs.width,cvs.height);
+  ctx_viewport.clearRect(0,0,cvs.width,cvs.height);
 	var w = cvs.width;
 	cvs.width = 1;
+  cvs_viewport.width = 1;
 	cvs.width = w;
+  cvs_viewport.width = w;
 }
 
 function update(){
@@ -166,6 +177,10 @@ function draw(){
 
   ctx.drawImage(menuImage,cvs.width/2 - menuSize/2, cvs.height/2 - menuSize/2 ,menuSize,menuSize);
  }
+}
+
+function flip(){
+  ctx_viewport.drawImage(cvs,0,0);
 }
 
 function drawLongitudes(){
@@ -300,12 +315,19 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.insideSphere = true;
   this.hasBounced = false;
   this.bounceTimerCounter = 0;
+  this.isCaught = false;
 
   this.update = function(){
     this.vel.y = 0;
     this.pos.y = 0;
    var rho = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z*this.pos.z);
-   if (rho > r + r/2){
+   if (this.isCaught){
+    var paddleLoc = sphereToRect(r-20, paddle.vertex.theta + delta.theta, paddle.vertex.phi);
+    this.pos.x = paddleLoc.x;
+    this.pos.y = paddleLoc.y;
+    this.pos.z = paddleLoc.z;
+   }
+   else if (rho > r + r/2){
     this.kill();
    }
    else if (rho < r + this.tolerance && rho > r - this.tolerance){
@@ -390,6 +412,15 @@ function Ball(color, x,y,z, dx,dy,dz){
   }
   this.checkCollision = function(){
 
+  }
+  this.pitch = function(){
+    this.hasBounced = true;
+    this.isCaught = false;
+    var speed = r/2000;
+    var normalFactor = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z + this.pos.z);
+    this.vel.x = -this.pos.x/normalFactor * speed;
+    this.vel.y = -this.pos.y/normalFactor * speed;
+    this.vel.z = -this.pos.z/normalFactor * speed;
   }
   /*
   this.drawRay = function(that){
