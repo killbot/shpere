@@ -3,15 +3,30 @@
 function init(){
  cvs = document.getElementById('canvas13k');
  ctx = cvs.getContext('2d');
- cvs.height = window.innerHeight;
- cvs.width = window.innerWidth;
+ mobile = false;
+ //agentTest = navigator.userAgent.indexOf;
+ if ((navigator.userAgent.indexOf('iPhone') != -1) 
+  || (navigator.userAgent.indexOf('iPod') != -1) 
+  || (navigator.userAgent.indexOf('iPad') != -1)) {
+    cvs.height = 500;
+    cvs.width = 800;
+    mobile = true;
+  }
+ else {
+  cvs.height = window.innerHeight-10;
+  cvs.width = window.innerWidth-10;
+  //cvs.height = 500;
+  //cvs.width = 800;
+ }
+//console.log(agentTest('iPod'));
+
  cvs.addEventListener('mousedown', onMouseDown, false);
  cvs.addEventListener('mousemove', onMouseMove, false);
  cvs.addEventListener('mouseup', onMouseUp, false);
  //cvs.addEventListener('mouseout', onMouseUp, false);
- cvs.addEventListener('touchstart', onMouseDown, false);
- cvs.addEventListener('touchmove', onMouseMove, false);
- cvs.addEventListener('touchend', onMouseUp, false);
+ window.addEventListener('touchstart', onMouseDown, false);
+ window.addEventListener('touchmove', onMouseMove, false);
+ window.addEventListener('touchend', onMouseUp, false);
  isMouseDown = false;
  mouseSensitivity = 100;
  currentMouseCoords = {x:0, y:0};
@@ -23,6 +38,8 @@ function init(){
  sphere_tau = -Math.PI/6; //declination angle of the sphere relative to camera
  starBoxSize = 0; //gets set in makestars();
  score = 0;
+ //console.log('window.innerwidth and cvs.width = ' + window.innerWidth + ", " + cvs.width);
+ //console.log('window.innerHeight and cvs.height = ' + window.innerHeight + ", " + cvs.height);
 
  tm = {
   current: Date.now(),
@@ -37,12 +54,19 @@ function init(){
  }
  sphere = makesphere();
  paddle = new Paddle('rgba(20,160,80,0.9)', 'rgba(20,160,80,0.4)', sphere[15][15]);
- console.log(sphere[15][15]);
- stars = makestars();
+ //console.log(sphere[15][15]);
+ 
+ if (!mobile){
+  stars = makestars();
+ //stars = [];
+ }
+ else {
+  stars = [];
+ }
+
  balls = [new Ball('green', 0,0,0, 0,0,-0.15)];
-
+ //balls = [];
 }
-
 function shpereMain(){
 	init();
 	setInterval(loop, 33); //30 fps roughly
@@ -101,7 +125,7 @@ function update(){
  for (var i=balls.length-1; i>=0; i--){
   //go through backwards and clean up pucks.
   if (balls[i].deleteMe == true){
-    balls[i].delete;
+    delete balls[i];
     balls.splice(i,1);
   }
  }
@@ -131,12 +155,13 @@ function drawLongitudes(){
  var frontColor = 'rgba(255,255,255,0.8)';
  var rearColor = 'rgba(190,190,190,0.6)';
  ctx.lineWidth=2.5;
- for (var j=0; j<sphere.length; j++){
+ var step = (mobile) ? 2 : 1;
+ for (var j=0; j<sphere.length; j+=step){
   ctx.beginPath();
   var pt0 = sphereToRect(r,sphere[j][0].theta + delta.theta, sphere[j][0].phi);
   pt0 = rotateAboutY(pt0.x, pt0.y, pt0.z, sphere_tau);
   ctx.moveTo(Math.round(pt0.x), Math.round(pt0.y));
-  for (var i=1; i<sphere[j].length; i++){
+  for (var i=1; i<sphere[j].length; i+=step){
    var pt = sphereToRect(r,sphere[j][i].theta + delta.theta, sphere[j][i].phi);
    pt = rotateAboutY(pt.x, pt.y, pt.z, sphere_tau);
    ctx.lineTo(Math.round(pt.x), Math.round(pt.y));
@@ -160,7 +185,7 @@ function makesphere(){
    sphere[t].push({theta: t * 12 / 360 * Math.PI * 2, phi: p * 6 / 360 * Math.PI *2}); 
   }
  }
- console.log(sphere);
+ //console.log(sphere);
  return sphere;
 }
 
@@ -294,13 +319,16 @@ function Ball(color, x,y,z, dx,dy,dz){
       var N = sphereToRect(r, paddle.vertex.theta + delta.theta, paddle.vertex.phi);
       var normalFactor = Math.sqrt(N.x*N.x + N.y*N.y + N.z*N.z);
       N.x = N.x/normalFactor;
-      N.y = N.y/normalFactor;
+      //N.y = N.y/normalFactor;
+      N.y = 0;
       N.z = N.z/normalFactor;
       this.vel = reflect(N, this.vel);
+      this.vel.x *= 1.05;
+      this.vel.z *= 1.05;
       score += 13;
       
       if (score % 39 == 0){
-        this.multiball(2, N);
+        this.multiball(2, N, normalFactor);
       }
       
     }
@@ -310,7 +338,7 @@ function Ball(color, x,y,z, dx,dy,dz){
     
    }
    this.pos.x += this.vel.x * tm.delta();
-   this.pos.y += this.vel.y * tm.delta();
+   //this.pos.y += this.vel.y * tm.delta();
    this.pos.z += this.vel.z * tm.delta();
    if (this.hasBounced){
     this.bounceTimerCounter++;
@@ -346,6 +374,7 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.checkCollision = function(){
 
   }
+  /*
   this.drawRay = function(that){
     //var this = that;
     //var startPoint = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
@@ -360,22 +389,26 @@ function Ball(color, x,y,z, dx,dy,dz){
     ctx.lineTo(pt1.x, pt1.y);
     ctx.strokeStyle = 'white';
     ctx.stroke();
-  }
-  this.multiball = function(number, Normal){
+  }*/
+
+  this.multiball = function(number, Normal, normalFactor){
     for (var i=0; i<number; i++){
       var newColor = 'rgb(' + Math.floor(randomRange(120,190)) + ',' + Math.floor(randomRange(120,190)) + ',' + Math.floor(randomRange(120,190)) + ')';
       //console.log("newcolor = " + newColor);
-      console.log("normal magnitude = " + Math.sqrt(Normal.x*Normal.x + Normal.y*Normal.y + Normal.z*Normal.z));
-      console.log("normal.y = " + Normal.y);
-      balls.push(new Ball(newColor, 0,0,0, -Normal.x * (.15 + randomRange(-.03,.03)),
+      //console.log("normal magnitude = " + Math.sqrt(Normal.x*Normal.x + Normal.y*Normal.y + Normal.z*Normal.z));
+      //console.log("normal.y = " + Normal.y);
+      var newSpeed = Math.sqrt(this.vel.x*this.vel.x + this.vel.z*this.vel.z);
+      balls.push(new Ball(newColor, Normal.x*normalFactor,Normal.y*normalFactor,Normal.z * normalFactor, 
+                                          -Normal.x * (newSpeed + randomRange(-.03,.03)),
                                           //-Normal.y * (.15 + randomRange(-.03,.03)),
                                           0,
-                                          -Normal.z * (.15 + randomRange(-.03,.03))
+                                          -Normal.z * (newSpeed + randomRange(-.03,.03))
         ));
       var tb = balls[balls.length-1];
       tb.pos.x += tb.vel.x * tm.delta();
-      tb.pos.y += tb.vel.y * tm.delta();
+      //tb.pos.y += tb.vel.y * tm.delta();
       tb.pos.z += tb.vel.z * tm.delta();
+      tb.hasBounced = true;
     }
   }
 
@@ -525,10 +558,10 @@ function reflect(N, V0){
   var Vnew = {x:scalar*N.x/normalFactor + V0.x, 
               y:scalar*N.y/normalFactor + V0.y, 
               z:scalar*N.z/normalFactor + V0.z};
-  console.log(scalar);
-  console.log(N);
-  console.log(V0);
-  console.log(Vnew);
+  //console.log(scalar);
+  //console.log(N);
+  //console.log(V0);
+  //console.log(Vnew);
   return Vnew;
 }
 
