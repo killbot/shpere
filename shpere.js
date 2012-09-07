@@ -2,6 +2,8 @@
 
 function init(){
  cvs = document.getElementById('canvas13k');
+ cvs2 = document.createElement('canvas');
+ ctx2 = cvs2.getContext('2d');
  ctx = cvs.getContext('2d');
  mobile = false;
  //agentTest = navigator.userAgent.indexOf;
@@ -13,10 +15,10 @@ function init(){
     mobile = true;
   }
  else {
-  //cvs.height = window.innerHeight-10;
-  //cvs.width = window.innerWidth-10;
-  cvs.height = 500;
-  cvs.width = 800;
+  cvs.height = window.innerHeight-10;
+  cvs.width = window.innerWidth-10;
+  //cvs.height = 500;
+  //cvs.width = 800;
  }
 //console.log(agentTest('iPod'));
 
@@ -43,7 +45,7 @@ function init(){
  score = 0;
  //console.log('window.innerwidth and cvs.width = ' + window.innerWidth + ", " + cvs.width);
  //console.log('window.innerHeight and cvs.height = ' + window.innerHeight + ", " + cvs.height);
- menuState = true;
+ menuState = false;
  playingState = false;
 
  tm = {
