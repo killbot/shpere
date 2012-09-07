@@ -25,11 +25,16 @@ function init(){
  cvs_viewport.height = cvs.height;
  cvs_viewport.width = cvs.width;
 //console.log(agentTest('iPod'));
+ menu = document.getElementById('menu'); //menu div
+ menuGraphic = document.getElementById('menuGraphic');
+ var tempsize = (cvs.height > cvs.width) ? cvs.width : cvs.height;
+ menuGraphic.height = tempsize;
+ menuGraphic.width = tempsize;
+ //menuImage = new Image;
+ //menuImage.src = 'instructions.svg';
 
- menuImage = new Image;
- menuImage.src = 'instructions.svg';
- 
-
+ menu.addEventListener('click', menuclick, false);
+ menu.addEventListener('touchend', menuclick, false);
  window.addEventListener('mousedown', onMouseDown, false);
  window.addEventListener('mousemove', onMouseMove, false);
  window.addEventListener('mouseup', onMouseUp, false);
@@ -50,7 +55,7 @@ function init(){
  score = 0;
  //console.log('window.innerwidth and cvs.width = ' + window.innerWidth + ", " + cvs.width);
  //console.log('window.innerHeight and cvs.height = ' + window.innerHeight + ", " + cvs.height);
- menuState = false;
+ menuState = true;
  playingState = false;
 
  tm = {
@@ -76,7 +81,7 @@ function init(){
   stars = [];
  }
 
- balls = [new Ball('green', 0,0,0, 0,0,-r/2000)];
+ balls = [new Ball('green', 0,0,0, 0,0,0)];
  //-r/2000 is a good starting speed.
  balls[0].isCaught = true;
  //balls = [];
@@ -149,7 +154,13 @@ function update(){
  }
 
  if (menuState){
-
+  delta.theta -= 0.0001 * tm.delta();
+  if (!mobile){
+   menu.style.top = 0;
+  }
+  else {
+    menu.style.visibility = 'visible';
+  }
  }
 
  //delta.theta += tm.delta() * 0.0001;
@@ -171,12 +182,14 @@ function draw(){
  drawLongitudes();
  if (paddle.isInFront) { paddle.draw() ;}
  
+ /*
  if (menuState){
   ctx.restore();
   var menuSize = (cvs.height > cvs.width) ? cvs.width : cvs.height; 
 
   ctx.drawImage(menuImage,cvs.width/2 - menuSize/2, cvs.height/2 - menuSize/2 ,menuSize,menuSize);
  }
+ */
 }
 
 function flip(){
@@ -328,7 +341,15 @@ function Ball(color, x,y,z, dx,dy,dz){
     this.pos.z = paddleLoc.z;
    }
    else if (rho > r + r/2){
-    this.kill();
+    if (balls.length == 1){
+      this.isCaught = true;
+      this.vel.x = 0;
+      this.vel.y = 0;
+      this.vel.z = 0;
+    }
+    else{
+     this.kill();
+    }
    }
    else if (rho < r + this.tolerance && rho > r - this.tolerance){
     var spherePos = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
@@ -365,7 +386,7 @@ function Ball(color, x,y,z, dx,dy,dz){
       this.vel.x *= 1.05;
       this.vel.z *= 1.05;
       score += 13;
-      
+
       if (score % 39 == 0){
         this.multiball(2, N, normalFactor);
       }
@@ -416,11 +437,15 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.pitch = function(){
     this.hasBounced = true;
     this.isCaught = false;
-    var speed = r/2000;
+    //var speed = 0.017
+    var speed = r/20000;
     var normalFactor = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z + this.pos.z);
     this.vel.x = -this.pos.x/normalFactor * speed;
     this.vel.y = -this.pos.y/normalFactor * speed;
     this.vel.z = -this.pos.z/normalFactor * speed;
+    console.log("speed = " + speed);
+    console.log(this.pos);
+    console.log(this.vel);
   }
   /*
   this.drawRay = function(that){
@@ -536,19 +561,24 @@ function onMouseDown(ev){
  ev.preventDefault();
  isMouseDown = true;
  currentMouseCoords = getMouseCoords(ev);
+ if (balls[0].isCaught && !menuState){
+  balls[0].pitch();
+ }
  //console.log("x, y = " + currentMouseCoords.x + ", " + currentMouseCoords.y);
 }
 function onMouseUp(ev){
  ev.preventDefault();
  isMouseDown = false;
- sphereVelocity.x = -(currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
- sphereVelocity.y = -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity;
+ if (!menuState){
+  sphereVelocity.x = -(currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
+  sphereVelocity.y = -(currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity;
+ }
 }
 function onMouseMove(ev){
  ev.preventDefault();
  lastMouseCoords = currentMouseCoords;
  currentMouseCoords = getMouseCoords(ev);
- if (isMouseDown){
+ if (isMouseDown && !menuState ){
   delta.theta += -(currentMouseCoords.x - lastMouseCoords.x)/mouseSensitivity;
 
   //sphere_tau += (currentMouseCoords.y - lastMouseCoords.y)/mouseSensitivity; 
@@ -563,6 +593,19 @@ function onMouseMove(ev){
 
  }
 }
+
+function menuclick(ev){
+  if (menuState == true){
+    menuState = false;
+    if (!mobile){
+     menu.style.top = cvs.height; //slide menu down;
+    }
+    else {
+      menu.style.visibility = "hidden";
+    } 
+  }
+}
+
 function getMouseCoords(ev) { //returns coords relative to 0,0 of the canvas
         var x = ev.x;
         var y = ev.y;
