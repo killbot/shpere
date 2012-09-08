@@ -30,6 +30,7 @@ function init(){
  var tempsize = (cvs.height > cvs.width) ? cvs.width : cvs.height;
  menuGraphic.height = tempsize;
  menuGraphic.width = tempsize;
+
  //menuImage = new Image;
  //menuImage.src = 'instructions.svg';
 
@@ -57,6 +58,7 @@ function init(){
  //console.log('window.innerHeight and cvs.height = ' + window.innerHeight + ", " + cvs.height);
  menuState = true;
  playingState = false;
+ sphereShaker = new Vibration();
 
  tm = {
   current: Date.now(),
@@ -138,6 +140,8 @@ function update(){
   if (Math.abs(sphereVelocity.x) < 0.005 ){
     sphereVelocity.x = 0;
   }
+
+  sphereShaker.update();
   /*
   if (Math.abs(sphereVelocity.y) < 0.005 ){
     sphereVelocity.y = 0;
@@ -182,6 +186,8 @@ function draw(){
  drawLongitudes();
  if (paddle.isInFront) { paddle.draw() ;}
  
+ drawScore();
+
  /*
  if (menuState){
   ctx.restore();
@@ -196,6 +202,13 @@ function flip(){
   ctx_viewport.drawImage(cvs,0,0);
 }
 
+function drawScore(){
+  ctx.font = '30px Sans-Serif';
+  ctx.textBaseline = 'Top';
+  ctx.fillStyle = 'red';
+  ctx.fillText(score, -cvs.width*5/11, -cvs.height*5/11);
+}
+
 function drawLongitudes(){
  var frontColor = 'rgba(255,255,255,0.8)';
  var rearColor = 'rgba(190,190,190,0.6)';
@@ -203,11 +216,11 @@ function drawLongitudes(){
  var step = (mobile) ? 2 : 1;
  for (var j=0; j<sphere.length; j+=step){
   ctx.beginPath();
-  var pt0 = sphereToRect(r,sphere[j][0].theta + delta.theta, sphere[j][0].phi);
+  var pt0 = sphereToRect(r + sphereShaker.magnitude,sphere[j][0].theta + delta.theta, sphere[j][0].phi);
   pt0 = rotateAboutY(pt0.x, pt0.y, pt0.z, sphere_tau);
   ctx.moveTo(Math.round(pt0.x), Math.round(pt0.y));
   for (var i=1; i<sphere[j].length; i+=step){
-   var pt = sphereToRect(r,sphere[j][i].theta + delta.theta, sphere[j][i].phi);
+   var pt = sphereToRect(r + sphereShaker.magnitude,sphere[j][i].theta + delta.theta, sphere[j][i].phi);
    pt = rotateAboutY(pt.x, pt.y, pt.z, sphere_tau);
    ctx.lineTo(Math.round(pt.x), Math.round(pt.y));
    if (i == 15){
@@ -343,6 +356,7 @@ function Ball(color, x,y,z, dx,dy,dz){
    else if (rho > r + r/2){
     if (balls.length == 1){
       this.isCaught = true;
+      menuState = true;
       this.vel.x = 0;
       this.vel.y = 0;
       this.vel.z = 0;
@@ -386,6 +400,7 @@ function Ball(color, x,y,z, dx,dy,dz){
       this.vel.x *= 1.05;
       this.vel.z *= 1.05;
       score += 13;
+      sphereShaker.shake(300);
 
       if (score % 39 == 0){
         this.multiball(2, N, normalFactor);
@@ -437,15 +452,17 @@ function Ball(color, x,y,z, dx,dy,dz){
   this.pitch = function(){
     this.hasBounced = true;
     this.isCaught = false;
+    score = 0;
     //var speed = 0.017
-    var speed = r/20000;
-    var normalFactor = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z + this.pos.z);
+    var speed = r/2000;
+    var normalFactor = Math.sqrt(this.pos.x*this.pos.x + this.pos.y*this.pos.y + this.pos.z*this.pos.z);
     this.vel.x = -this.pos.x/normalFactor * speed;
-    this.vel.y = -this.pos.y/normalFactor * speed;
+    this.vel.y = -this.pos.y/normalFactor* speed;
     this.vel.z = -this.pos.z/normalFactor * speed;
-    console.log("speed = " + speed);
-    console.log(this.pos);
-    console.log(this.vel);
+    //this.vel.z = -this.pos.z/normalFactor1 * speed1;
+    //console.log("speed = " + speed1);
+    //console.log(this.pos);
+    //console.log(this.vel);
   }
   /*
   this.drawRay = function(that){
@@ -654,6 +671,36 @@ function reflect(N, V0){
   //console.log(V0);
   //console.log(Vnew);
   return Vnew;
+}
+
+function Vibration(){
+  this.magnitude = 0;
+  this.last_magnitude = 0;
+  this.vel = 0;
+  this.accel = 0;
+  this.k = 150; //spring constant
+  this.c = 10; //damping constant
+  this.m = 1; //mass
+  this.update = function(){
+    var time = tm.delta()/1000;
+    this.last_magnitude = this.magnitude;
+    this.accel = (-this.k*this.magnitude + -this.c*this.vel)/this.m;
+    this.vel = this.vel + this.accel * time;
+    this.magnitude = this.magnitude + this.vel * time;
+    //console.log("magnitude = " + this.magnitude + ", vel = ", + this.vel + ", accel + " + this.accel);
+    if (Math.abs(this.vel) <= 0.0001 && Math.abs(this.magnitude) > 0){
+      this.vel = 0;
+      this.magnitude = 0;
+      this.accel = 0;
+      //console.log("stop bouncing");
+    }
+  }
+
+  this.shake = function(amplitude){
+    this.vel += amplitude;
+
+  }
+
 }
 
 
