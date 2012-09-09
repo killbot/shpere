@@ -1,5 +1,16 @@
 //dave homan's entry into js13k game compo 2012
 
+window.requestAnimFrame = (function (callback) {
+  return window.requestAnimationFrame ||
+  window.webkitRequestAnimationFrame ||
+  window.mozRequestAnimationFrame ||
+  window.oRequestAnimationFrame ||
+  window.msRequestAnimationFrame ||
+  function (callback) {
+    window.setTimeout(callback, 0);
+  };
+})();
+
 function init(){
  cvs = document.createElement('canvas');
  cvs_viewport = document.getElementById('canvas13k');
@@ -90,7 +101,8 @@ function init(){
 }
 function shpereMain(){
 	init();
-	setInterval(loop, 33); //30 fps roughly
+	loop();
+  //setInterval(loop, 33); //30 fps roughly
 }
 
 function loop(){
@@ -98,6 +110,9 @@ function loop(){
 	update();
 	draw();
   flip();
+  window.requestAnimFrame(function(){
+    loop();
+  });
 }
 
 function clear(){
