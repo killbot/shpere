@@ -23,8 +23,8 @@ function init(){
  if ((navigator.userAgent.indexOf('iPhone') != -1) 
   || (navigator.userAgent.indexOf('iPod') != -1) 
   || (navigator.userAgent.indexOf('iPad') != -1)) {
-    cvs.height = 300;
-    cvs.width = 400;
+    cvs.height = 500;
+    cvs.width = 800;
     mobile = true;
   }
  else {
@@ -41,6 +41,8 @@ function init(){
  var tempsize = (cvs.height > cvs.width) ? cvs.width : cvs.height;
  menuGraphic.height = tempsize;
  menuGraphic.width = tempsize;
+
+
 
  //menuImage = new Image;
  //menuImage.src = 'instructions.svg';
@@ -91,7 +93,8 @@ function init(){
  //stars = [];
  }
  else {
-  stars = [];
+  stars = makestars();
+  //stars = [];
  }
 
  balls = [new Ball('green', 0,0,0, 0,0,0)];
@@ -167,13 +170,18 @@ function update(){
  for (var i=balls.length-1; i>=0; i--){
   //go through backwards and clean up pucks.
   if (balls[i].deleteMe == true){
-    delete balls[i];
-    balls.splice(i,1);
+    if (balls.length == 1){
+      balls[i].isCaught;
+    }
+    else {
+     delete balls[i];
+     balls.splice(i,1);
+    }
   }
  }
 
  if (menuState){
-  delta.theta -= 0.0001 * tm.delta();
+  delta.theta += 0.0001 * tm.delta();
   if (!mobile){
    menu.style.top = 0;
   }
@@ -192,7 +200,9 @@ function draw(){
  ctx.save();
  ctx.translate(cvs.width/2, cvs.height/2);
  for (var i=0; i<stars.length; i++){
+  ctx.beginPath();
   stars[i].draw();
+  ctx.fill();
  }
  if (!paddle.isInFront) { paddle.draw() ;}
  for (var j=0; j<balls.length; j++){
@@ -218,10 +228,12 @@ function flip(){
 }
 
 function drawScore(){
-  ctx.font = '30px Sans-Serif';
+  ctx.font = '50px Impact,Charcoal,sans-serif';
   ctx.textBaseline = 'Top';
-  ctx.fillStyle = 'red';
-  ctx.fillText(score, -cvs.width*5/11, -cvs.height*5/11);
+  ctx.fillStyle = 'rgba(100,100,100,0.9)';
+  ctx.fillText(score, -cvs.width*5/11, -cvs.height*5/11 + 60);
+  ctx.fillStyle = 'rgba(200,200,200,0.9)';
+  ctx.fillText(score, -cvs.width*5/11 -3, -cvs.height*5/11 + 57)
 }
 
 function drawLongitudes(){
@@ -246,6 +258,7 @@ function drawLongitudes(){
   ctx.stroke();
   //ctx.closePath();
  }
+ //ctx.stroke();
  //console.log('drawing longitudes');
 }
 
@@ -336,13 +349,13 @@ function Star(color, x, y, z){
   }
  }
  this.draw = function(){
-  ctx.beginPath();
+  //ctx.beginPath();
   var pt = {x:0, y:0, z:0};
   pt = rectToStereoRect(this.pos.x, this.pos.y, this.pos.z);
   ctx.arc(pt.x, pt.y, this.radius, 0, 2*Math.PI, false);
   ctx.fillStyle = this.color;
-  ctx.closePath();
-  ctx.fill();
+  //ctx.closePath();
+  //ctx.fill();
  }
 }
 
@@ -369,6 +382,7 @@ function Ball(color, x,y,z, dx,dy,dz){
     this.pos.z = paddleLoc.z;
    }
    else if (rho > r + r/2){
+    //ball is out of bounds
     if (balls.length == 1){
       this.isCaught = true;
       menuState = true;
@@ -384,7 +398,11 @@ function Ball(color, x,y,z, dx,dy,dz){
     var spherePos = rectToSphere(this.pos.x, this.pos.y, this.pos.z);
     spherePos.theta = spherePos.theta%(2*Math.PI);
     spherePos.theta = Math.acos(Math.cos(spherePos.theta));
-    var paddleTheta = Math.acos(Math.cos(paddle.vertex.theta + delta.theta));
+    var paddleTheta = (paddle.vertex.theta + delta.theta)%(2*Math.PI)
+    paddleTheta = Math.acos(Math.cos(paddleTheta));
+    var paddlePosRect = sphereToRect(r,paddle.vertex.theta + delta.theta, Math.PI/2);
+
+    //var paddleTheta = (paddle.vertex.theta + delta.theta)%(2*Math.PI);
     if (spherePos.theta < 0){
       spherePos.theta += Math.PI * 2;
     }
@@ -400,7 +418,10 @@ function Ball(color, x,y,z, dx,dy,dz){
     */
     if (  !this.hasBounced &&
           spherePos.theta < (paddleTheta + paddle.deg/2)%(Math.PI*2) &&
-          spherePos.theta > (paddleTheta - paddle.deg/2)%(Math.PI*2)){
+          spherePos.theta > (paddleTheta - paddle.deg/2)%(Math.PI*2) &&
+          paddlePosRect.x * this.pos.x >= 0
+
+          ){
           //spherePos.phi < paddle.vertex.phi + paddle.deg/2 + sphere_tau && 
           //spherePos.phi > paddle.vertex.phi - paddle.deg/2 + sphere_tau){
       //console.log("bouncing");
@@ -717,6 +738,8 @@ function Vibration(){
   }
 
 }
+
+
 
 
 
